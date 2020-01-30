@@ -27,7 +27,7 @@ def check_db():
         traceback.print_stack()
     return 0
 
-watch_dependencies("database", check_db, time_execution=10)
+watch_dependencies("database", check_db, time_execution=1)
 
 @app.route('/teste')
 def hello_teste():

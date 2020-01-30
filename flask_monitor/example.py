@@ -11,7 +11,7 @@ from prometheus_client import make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 
-from flask_monitor import register_metrics
+from flask_monitor import register_metrics, watch_dependencies
 
 #
 # Constants
@@ -23,13 +23,19 @@ def create_app():
     Application factory
     """
     app = Flask(__name__)
-    app.config["VERSION"] = "v1.2.0"
+    app.config["APP_VERSION"] = "v0.1.2"
 
     @app.route('/teste')
     def hello_teste():
         return 'Test'
+    
+    def check_db():
+        return 1
 
     register_metrics(app)
+
+    # watch_dependencies("database", check_db, time_execution=1)
+    
     return app
 
 

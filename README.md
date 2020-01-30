@@ -3,14 +3,15 @@ A Prometheus middleware to add basic but very useful metrics for your Python Fla
 
 # Metrics
 
-The only exposed metrics (for now) are the following:
+As valid Big Brother library it exposes the following metrics:
 
 ```
-request_seconds_bucket{type,status, method, addr, version, isError, le}
-request_seconds_count{type, status, method, addr, version, isError}
-request_seconds_sum{type, status, method, addr, version, isError}
-response_size_bytes{type, status, method, addr, version, isError}
+request_seconds_bucket{type, status, isError, method, addr, le}
+request_seconds_count{type, status, isError, method, addr}
+request_seconds_sum{type, status, isError, method, addr}
+response_size_bytes{type, status, isError, method, addr}
 dependency_up{name}
+application_info{version}
 ```
 
 Where, for a specific request, `type` tells which request protocol was used (e.g. `grpc` or `http`), `status` registers the response HTTP status, `method` registers the request method, `addr` registers the requested endpoint address, `version` tells which version of your app handled the request and `isError` lets us know if the status code reported is an error or not.
@@ -25,7 +26,20 @@ In detail:
 
 4. The `response_size_bytes` is a counter that computes how much data is being sent back to the user for a given request type. It captures the response size from the `content-length` response header. If there is no such header, the value exposed as metric will be zero;
 
-5. Finally, `dependency_up` is a metric to register weather a specific dependency is up (1) or down (0). The label `name` registers the dependency name;
+5. The `dependency_up` is a metric to register weather a specific dependency is up (1) or down (0). The label `name` registers the dependency name;
+
+6. Finally, `application_info` holds static info of an application, such as it's semantic version number;
+
+## Labels
+
+For a specific request:
+
+1. `type` tells which request protocol was used (e.g. `grpc`, `http`, `<your custom protocol>`);
+2. `status` registers the response status code; 
+3. `isError` let you know if the request's response status is considered an error;
+4. `method` registers the request method (e.g. `GET` for http get requests);
+5. `addr` registers the requested endpoint address;
+6. and `version` tells which version of your service has handled the request;
 
 # How to
 
@@ -34,6 +48,8 @@ Add this package as a dependency:
 ```
 pip install flask-monitor
 ```
+
+or
 
 ```
 pipenv install flask-monitor
@@ -93,8 +109,17 @@ def check_db():
     return 0
 
 watch_dependencies("Bd", check_db)
-
 ```
+
+Other optional parameters are also:
+
+watch_dependencies has the following parameters:
+
+1. `dependency`: the name of the dependency;
+
+2. `func`: the health check callback function;
+
+3. `time_execution`: the interval time in seconds that `func` will be called.
 
 Now run your app and point prometheus to the defined metrics endpoint of your server.
 

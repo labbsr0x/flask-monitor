@@ -3,6 +3,10 @@ def test_endpoint_index(app, client):
         response = client.get("/teste")
         assert b"Test" in response.data
 
+def test_application_version(app, client):
+    with app.test_request_context():
+        response = client.get("/metrics")
+        assert b"application_info" in response.data
 
 def test_metric_app_request_latency_seconds(app, client):
     with app.test_request_context():

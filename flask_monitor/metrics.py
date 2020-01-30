@@ -85,7 +85,7 @@ def register_metrics(app, buckets=[0.1, 0.3, 1.5, 10.5], error_fn=None):
 def watch_dependencies(dependency, func, time_execution=1500):
     
     def thread_function():
-        x = threading.Timer(time_execution, lambda x: x + 1)
+        x = threading.Timer(time_execution, lambda x: x + 1, args=(1,))
         x.start()
         x.join()
         response = func()

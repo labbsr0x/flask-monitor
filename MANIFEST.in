@@ -1,0 +1,2 @@
+exclude flask_monitor/tests/*
+exclude example/*

@@ -20,6 +20,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependecies
-        run: pypy3 install -r requirements.txt
+        run: pip3 install -r requirements.txt
       - name: Run tests
         run: pytest

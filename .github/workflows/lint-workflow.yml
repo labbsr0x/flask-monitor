@@ -1,0 +1,18 @@
+name: Lint workflow
+# This workflow is triggered on pushes to the repository.
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.6
+      - name: Install dependecies
+        run: pip3 install -r requirements.txt
+      - name: Install lint
+        run: pip3 install pylint
+      - name: Run tests
+        run: pylint flask_monitor/metrics.py

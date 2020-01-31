@@ -1,6 +1,6 @@
 import pytest
 
-from flask_monitor.example import create_app, create_dispatcher
+from .app import create_app, create_dispatcher
 
 
 def pytest_make_parametrize_id(config, val, argname):

@@ -11,7 +11,7 @@ except FileNotFoundError:
     long_description = 'A Prometheus middleware to add basic but very useful metrics for your Python Flask app.'
 
 setup(
-    name='flask_monitor',
+    name='bb_flask_monitor',
     description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',

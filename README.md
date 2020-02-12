@@ -44,13 +44,13 @@ For a specific request:
 Add this package as a dependency:
 
 ```
-pip install flask-monitor
+pip install bb-flask-monitor
 ```
 
 or
 
 ```
-pipenv install flask-monitor
+pipenv install bb-flask-monitor
 ```
 
 ## HTTP Metrics

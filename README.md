@@ -63,7 +63,7 @@ from flask import Flask
 from prometheus_client import make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
-from flask_monitor import register_metrics
+from bb_flask_monitor import register_metrics
 
 app = Flask(__name__)
 app.config["APP_VERSION"] = "v0.1.2"

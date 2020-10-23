@@ -6,6 +6,9 @@ import traceback
 from flask_monitor import register_metrics, watch_dependencies
 from flask import Flask
 import requests as req
+from prometheus_client import CollectorRegistry
+
+registry = CollectorRegistry()
 
 ## create a flask app
 app = Flask(__name__)
@@ -23,10 +26,10 @@ def is_error200(code):
 # buckets is the internavals for histogram parameter. buckets is a optional parameter
 # error_fn is a function to define what http status code is a error. By default errors are
 # 400 and 500 status code. error_fn is a option parameter
-register_metrics(app, buckets=[0.3, 0.6], error_fn=is_error200)
+register_metrics(app, buckets=[0.3, 0.6], error_fn=is_error200, registry=registry)
 
 # Plug metrics WSGI app to your main app with dispatcher
-dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
+dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)})
 
 # a dependency healthcheck
 def check_db():
@@ -43,7 +46,7 @@ def check_db():
 # second parameter is the health check function. It's a mandatory parameter.
 # time_execution is used to set the interval of running the healthchec function.
 # time_execution is a optional parameter
-watch_dependencies("database", check_db, time_execution=1)
+watch_dependencies("database", check_db, time_execution=1, registry=registry)
 
 # endpoint
 @app.route('/teste')

@@ -2,7 +2,7 @@
 import time
 import threading
 from flask import request, current_app
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
 
 #
 # Request callbacks
@@ -33,8 +33,11 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     """
 
     if app.config.get("METRICS_ENABLED", False):
-        return app
+        return app, app.config.get("REGISTRY", registry)
     app.config["METRICS_ENABLED"] = True
+    if not registry:
+        registry = app.config.get("REGISTRY", CollectorRegistry())
+    app.config["REGISTRY"] = registry
     app.logger.info('Metrics enabled')
 
     buckets = [0.1, 0.3, 1.5, 10.5] if buckets is None else buckets
@@ -98,13 +101,17 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
         is_error.__code__ = error_fn.__code__
     app.before_request(before_request)
     app.after_request(after_request)
-    return app
+    return app, registry
 
 def watch_dependencies(dependency, func, time_execution=1500, registry=None, app=current_app):
     """
     Register dependencies metrics
     """
 
+    if not registry:
+        registry = app.config.get("REGISTRY", CollectorRegistry())
+    app.config["REGISTRY"] = registry
+    
     # pylint: disable=invalid-name
     DEPENDENCY_UP = Gauge(
         'dependency_up',

@@ -7,7 +7,7 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 class FlaskMonitorTestCase(unittest.TestCase):
     def setUp(self):
         """ setUp test """
-        self.registry = CollectorRegistry()
+        # self.registry = CollectorRegistry()
         self.app = Flask(__name__)
         self.prometheus = make_wsgi_app()
 
@@ -31,7 +31,7 @@ class FlaskMonitorTestCase(unittest.TestCase):
             """ Default metrics """
             return self.dispatcher.mounts['/metrics']({}, self.capture)[0]
 
-        register_metrics(self.app, registry=self.registry, error_fn=is_error200)
+        self.app, self.registry  = register_metrics(self.app, error_fn=is_error200)
         self.dispatcher = DispatcherMiddleware(self.app.wsgi_app, {"/metrics": make_wsgi_app(registry=self.registry)})
         # self.app.wsgi_app = DispatcherMiddleware(self.app.wsgi_app, self.registry)
         self.thread = watch_dependencies("database", check_db, time_execution=1, registry=self.registry, app=self.app)

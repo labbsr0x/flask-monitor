@@ -22,6 +22,6 @@ jobs:
       - name: Install dependencies
         run: pip3 install -r requirements.txt
       - name: Install tests dependencies
-        run: pip3 install node coverage
+        run: pip3 install nose coverage
       - name: Run tests
         run: nosetests --with-coverage --cover-package=flask_monitor -v tests

@@ -46,7 +46,7 @@ def check_db():
 # second parameter is the health check function. It's a mandatory parameter.
 # time_execution is used to set the interval of running the healthchec function.
 # time_execution is a optional parameter
-watch_dependencies("database", check_db, time_execution=1, registry=registry)
+watch_dependencies("database", check_db, time_execution=1, registry=registry, app=app)
 
 # endpoint
 @app.route('/teste')

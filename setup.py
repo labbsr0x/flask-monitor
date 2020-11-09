@@ -49,5 +49,10 @@ setup(
     ],
     extras_require={
         'flask': ['Flask>=1.0.0'],
-    }
+    },
+    test_suite='nose.collector',
+    tests_require=[
+        'nose',
+        'packaging'
+    ],
 )

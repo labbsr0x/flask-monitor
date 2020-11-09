@@ -1,8 +1,7 @@
 """ Functions for define and register metrics """
 import time
 import threading
-from flask import request
-from prometheus_client import multiprocess
+from flask import request, current_app
 from prometheus_client import Counter, Histogram, Gauge
 
 #
@@ -20,7 +19,7 @@ def is_error(code):
 #
 # Metrics registration
 #
-def register_metrics(app, buckets=None, error_fn=None, registry=None):
+def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None):
     """
     Register metrics middlewares
 
@@ -33,8 +32,15 @@ def register_metrics(app, buckets=None, error_fn=None, registry=None):
     could be executed in arbitrary order.
     """
 
+    if app.config.get("METRICS_ENABLED", False):
+        return app
+    app.config["METRICS_ENABLED"] = True
+    app.logger.info('Metrics enabled')
+
     buckets = [0.1, 0.3, 1.5, 10.5] if buckets is None else buckets
 
+
+    # pylint: disable=invalid-name
     METRICS_INFO = Gauge(
         "application_info",
         "records static application info such as it's semantic version number",
@@ -51,6 +57,7 @@ def register_metrics(app, buckets=None, error_fn=None, registry=None):
         registry=registry
     )
 
+    # pylint: disable=invalid-name
     METRICS_REQUEST_SIZE = Counter(
         "response_size_bytes",
         "counts the size of each http response",
@@ -91,12 +98,14 @@ def register_metrics(app, buckets=None, error_fn=None, registry=None):
         is_error.__code__ = error_fn.__code__
     app.before_request(before_request)
     app.after_request(after_request)
+    return app
 
-def watch_dependencies(dependency, func, time_execution=1500, registry=None):
+def watch_dependencies(dependency, func, time_execution=1500, registry=None, app=current_app):
     """
     Register dependencies metrics
     """
 
+    # pylint: disable=invalid-name
     DEPENDENCY_UP = Gauge(
         'dependency_up',
         'records if a dependency is up or down. 1 for up, 0 for down',
@@ -104,6 +113,7 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None):
         registry=registry
     )
 
+    # pylint: disable=invalid-name
     DEPENDENCY_UP_LATENCY = Histogram(
         "dependency_request_seconds",
         "records in a histogram the number of requests to dependency",
@@ -122,4 +132,16 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None):
             .observe(time.time() - start)
         thread_function()
     thread = threading.Timer(time_execution, thread_function)
+
+    # pylint: disable=unused-argument
+    def stop_timer(*args):
+        """
+        Stop timer thread
+        """
+        thread.cancel()
+
+    if app:
+        with app.app_context():
+            app.teardown_appcontext(stop_timer)
     thread.start()
+    return thread

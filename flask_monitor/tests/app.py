@@ -34,7 +34,7 @@ def create_app():
 
     register_metrics(app)
 
-    # watch_dependencies("database", check_db, time_execution=1)
+    # watch_dependencies("database", check_db, time_execution=1, app=app)
     
     return app
 
@@ -56,10 +56,11 @@ def create_dispatcher(app) -> DispatcherMiddleware:
 #
 
 if __name__ == "__main__":
+    app = create_app()
     run_simple(
         "localhost",
         5000,
-        create_dispatcher(),
+        create_dispatcher(app),
         use_reloader=True,
         use_debugger=True,
         use_evalex=True,

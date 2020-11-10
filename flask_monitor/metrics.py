@@ -142,7 +142,7 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
         except Exception:
             DEPENDENCY_UP.labels(dependency).set(0.0)
             DEPENDENCY_UP_LATENCY \
-                .labels(dependency, "http", "400", "True", "", "GET", "/") \
+                .labels(dependency, "http", "500", "True", "", "GET", "/") \
                 .observe(time.time() - start)
 
 

@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, url_for
 import unittest
 from prometheus_client import CollectorRegistry, Counter, make_wsgi_app
-from flask_monitor import register_metrics, watch_dependencies
+from flask_monitor import register_metrics, watch_dependencies, collect_dependency_time
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from time import sleep
 
@@ -15,12 +15,23 @@ class FlaskMonitorTestCase(unittest.TestCase):
 
         @self.app.route('/')
         @self.app.route('/teste')
+        @self.app.route('/database')
         def index():
             """ Home """
             return jsonify({'home':True})
 
         def check_db():
             """ HealthCheck """
+            response = self.client.get("http://localhost:5000/database")
+            collect_dependency_time(
+                app=self.app,
+                name='database',
+                type='http',
+                status=response.status_code,
+                isError= 'False' if response.status_code < 400 else 'True',
+                method='GET',
+                addr='/database'
+            )
             return True
 
         def is_error200(code):
@@ -109,6 +120,7 @@ class FlaskMonitorTestCase(unittest.TestCase):
         """
         sleep(3)
         resp = self.client.get('/metrics')
+        print(resp.data.decode())
         self.assertIn('database', resp.data.decode())
 
 

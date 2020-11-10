@@ -3,7 +3,7 @@ from prometheus_client import make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 import traceback
-from flask_monitor import register_metrics, watch_dependencies
+from flask_monitor import register_metrics, watch_dependencies, collect_dependency_time
 from flask import Flask
 import requests as req
 from prometheus_client import CollectorRegistry
@@ -35,19 +35,39 @@ dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app(regis
 def check_db():
     try:
         response = req.get("http://localhost:5000/database")
-        app.logger.info(response)
-        if response.status_code == 200:
-            return 1
+        app.logger.warning(response)
+        collect_dependency_time(
+            app=app,
+            name='database',
+            type='http',
+            status=response.status_code,
+            isError= 'False' if response.ok else 'True',
+            method='GET',
+            addr='/database',
+            elapsed=response.elapsed.total_seconds()
+        )
+        return 1
     except:
+        collect_dependency_time(
+            app=app,
+            name='database',
+            type='http',
+            status='500',
+            isError= 'True',
+            method='GET',
+            addr='/database',
+            elapsed=0
+        )
         traceback.print_stack()
-    return 0
+        return 0
+    
 
 # watch dependency
 # first parameter is the dependency's name. It's a mandatory parameter.
 # second parameter is the health check function. It's a mandatory parameter.
 # time_execution is used to set the interval of running the healthchec function.
 # time_execution is a optional parameter
-watch_dependencies("database", check_db, time_execution=100, registry=registry, app=app)
+scheduler = watch_dependencies('database', check_db, app=app, time_execution=500)
 
 # endpoint
 @app.route('/teste')

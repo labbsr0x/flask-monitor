@@ -5,11 +5,11 @@ from flask import request, current_app
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
 from apscheduler.schedulers.background import BackgroundScheduler
 
+DEPENDENCY_UP_LATENCY = None
+
 #
 # Request callbacks
 #
-
-
 def is_error(code):
     """
     Default status error checking
@@ -104,14 +104,15 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     app.after_request(after_request)
     return app, registry
 
-def watch_dependencies(dependency, func, time_execution=1500, registry=None, app=current_app):
+
+def watch_dependencies(dependency, func, time_execution=15000, registry=None, app=current_app):
     """
-    Register dependencies metrics
+    Register dependencies metrics up
     """
 
     if not registry:
         registry = app.extensions.get("registry", CollectorRegistry())
-    app.extensions["registry"] = registry
+        app.extensions["registry"] = registry
 
     # pylint: disable=invalid-name
     DEPENDENCY_UP = Gauge(
@@ -120,39 +121,16 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
         ["name"],
         registry=registry
     )
-
-    # pylint: disable=invalid-name
-    DEPENDENCY_UP_LATENCY = Histogram(
-        "dependency_request_seconds",
-        "records in a histogram the number of requests to dependency",
-        ["name", "type", "status", "isError", "errorMessage", "method", "addr"],
-        registry=registry
-    )
-    def thread_function():
-        start = time.time()
-        try:
-            response = func()
-            DEPENDENCY_UP.labels(dependency).set(response)
-            DEPENDENCY_UP_LATENCY \
-                .labels(
-                    dependency, "http", "200" if response else "400",
-                    "False" if response else "True", "", "GET", "/") \
-                .observe(time.time() - start)
-        # pylint: disable=broad-except
-        except Exception:
-            DEPENDENCY_UP.labels(dependency).set(0.0)
-            DEPENDENCY_UP_LATENCY \
-                .labels(dependency, "http", "500", "True", "", "GET", "/") \
-                .observe(time.time() - start)
-
+    def register_dependecy():
+        DEPENDENCY_UP.labels(dependency).set(func())
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(
-        func=thread_function,
+        func=register_dependecy,
         trigger="interval",
         seconds=time_execution/1000,
-        max_instances=3,
-        name='watch dependencies',
+        max_instances=1,
+        name='dependency',
         misfire_grace_time=2,
         replace_existing=True
         )
@@ -160,5 +138,43 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
 
     # Shut down the scheduler when exiting the app
     atexit.register(scheduler.shutdown)
-    # app.teardown_appcontext(scheduler.shutdown)
     return scheduler
+
+# pylint: disable=unused-argument
+def collect_dependency_time(app, *args, **kwargs):
+    """
+    Register dependencies metrics
+    """
+
+    # pylint: disable=global-statement
+    global DEPENDENCY_UP_LATENCY
+
+    if not kwargs.get('registry'):
+        registry = app.extensions.get("registry", CollectorRegistry())
+        app.extensions["registry"] = registry
+
+    if not DEPENDENCY_UP_LATENCY:
+        DEPENDENCY_UP_LATENCY = app.extensions.get(
+            "DEPENDENCY_UP_LATENCY",
+            Histogram(
+                "dependency_request_seconds",
+                "records in a histogram the number of requests to dependency",
+                ["name", "type", "status", "isError", "errorMessage", "method", "addr"],
+                registry=registry
+            )
+        )
+        app.extensions['DEPENDENCY_UP_LATENCY'] = DEPENDENCY_UP_LATENCY
+
+    elapsed = kwargs.get('elapsed')
+    if not elapsed:
+        elapsed = time.time() - kwargs.get('start', time.time())
+    DEPENDENCY_UP_LATENCY \
+        .labels(
+            kwargs.get('name', ''),
+            kwargs.get('type', '').lower(),
+            kwargs.get('status', ''),
+            "False" if kwargs.get('isError', True) else "True",
+            kwargs.get('errorMessage', ''),
+            kwargs.get('method', 'get').upper(),
+            kwargs.get('addr', '/')) \
+        .observe(elapsed)

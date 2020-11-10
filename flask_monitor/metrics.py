@@ -34,11 +34,11 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     """
 
     if app.config.get("METRICS_ENABLED", False):
-        return app, app.config.get("REGISTRY", registry)
+        return app, app.extensions.get("registry", registry)
     app.config["METRICS_ENABLED"] = True
     if not registry:
-        registry = app.config.get("REGISTRY", CollectorRegistry())
-    app.config["REGISTRY"] = registry
+        registry = app.extensions.get("registry", CollectorRegistry())
+    app.extensions["registry"] = registry
     app.logger.info('Metrics enabled')
 
     buckets = [0.1, 0.3, 1.5, 10.5] if buckets is None else buckets
@@ -110,8 +110,8 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
     """
 
     if not registry:
-        registry = app.config.get("REGISTRY", CollectorRegistry())
-    app.config["REGISTRY"] = registry
+        registry = app.extensions.get("registry", CollectorRegistry())
+    app.extensions["registry"] = registry
 
     # pylint: disable=invalid-name
     DEPENDENCY_UP = Gauge(
@@ -160,4 +160,5 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
 
     # Shut down the scheduler when exiting the app
     atexit.register(scheduler.shutdown)
+    # app.teardown_appcontext(scheduler.shutdown)
     return scheduler

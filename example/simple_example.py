@@ -35,6 +35,7 @@ dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app(regis
 def check_db():
     try:
         response = req.get("http://localhost:5000/database")
+        app.logger.info(response)
         if response.status_code == 200:
             return 1
     except:
@@ -46,7 +47,7 @@ def check_db():
 # second parameter is the health check function. It's a mandatory parameter.
 # time_execution is used to set the interval of running the healthchec function.
 # time_execution is a optional parameter
-watch_dependencies("database", check_db, time_execution=1, registry=registry, app=app)
+watch_dependencies("database", check_db, time_execution=100, registry=registry, app=app)
 
 # endpoint
 @app.route('/teste')

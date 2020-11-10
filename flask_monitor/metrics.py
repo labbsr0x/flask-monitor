@@ -1,8 +1,9 @@
 """ Functions for define and register metrics """
 import time
-import threading
+import atexit
 from flask import request, current_app
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
+from apscheduler.schedulers.background import BackgroundScheduler
 
 #
 # Request callbacks
@@ -47,7 +48,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     METRICS_INFO = Gauge(
         "application_info",
         "records static application info such as it's semantic version number",
-        ["version"],
+        ["version", "name"],
         registry=registry
     )
 
@@ -70,7 +71,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     # pylint: enable=invalid-name
 
     app_version = app.config.get("APP_VERSION", "0.0.0")
-    METRICS_INFO.labels(app_version).set(1)
+    METRICS_INFO.labels(app_version, app.name).set(1)
 
     def before_request():
         """
@@ -111,7 +112,7 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
     if not registry:
         registry = app.config.get("REGISTRY", CollectorRegistry())
     app.config["REGISTRY"] = registry
-    
+
     # pylint: disable=invalid-name
     DEPENDENCY_UP = Gauge(
         'dependency_up',
@@ -129,26 +130,32 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
     )
     def thread_function():
         start = time.time()
-        thread = threading.Timer(time_execution, lambda x: x + 1, args=(1,))
-        thread.start()
-        thread.join()
-        response = func()
-        DEPENDENCY_UP.labels(dependency).set(response)
-        DEPENDENCY_UP_LATENCY \
-            .labels(dependency, "http", "200", "False", "", "GET", "/") \
-            .observe(time.time() - start)
-        thread_function()
-    thread = threading.Timer(time_execution, thread_function)
+        try:
+            response = func()
+            DEPENDENCY_UP.labels(dependency).set(response)
+            DEPENDENCY_UP_LATENCY \
+                .labels(dependency, "http", "200" if response else "400", "False", "", "GET", "/") \
+                .observe(time.time() - start)
+        # pylint: disable=broad-except
+        except Exception:
+            DEPENDENCY_UP.labels(dependency).set(0.0)
+            DEPENDENCY_UP_LATENCY \
+                .labels(dependency, "http", "400", "True", "", "GET", "/") \
+                .observe(time.time() - start)
 
-    # pylint: disable=unused-argument
-    def stop_timer(*args):
-        """
-        Stop timer thread
-        """
-        thread.cancel()
 
-    if app:
-        with app.app_context():
-            app.teardown_appcontext(stop_timer)
-    thread.start()
-    return thread
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        func=thread_function,
+        trigger="interval",
+        seconds=time_execution/1000,
+        max_instances=3,
+        name='watch dependencies',
+        misfire_grace_time=2,
+        replace_existing=True
+        )
+    scheduler.start()
+
+    # Shut down the scheduler when exiting the app
+    atexit.register(scheduler.shutdown)
+    return scheduler

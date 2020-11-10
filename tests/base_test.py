@@ -3,6 +3,7 @@ import unittest
 from prometheus_client import CollectorRegistry, Counter, make_wsgi_app
 from flask_monitor import register_metrics, watch_dependencies
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from time import sleep
 
 class FlaskMonitorTestCase(unittest.TestCase):
     def setUp(self):
@@ -21,6 +22,7 @@ class FlaskMonitorTestCase(unittest.TestCase):
         def check_db():
             """ HealthCheck """
             return True
+
         def is_error200(code):
             """ Check error """
             code = str(code) if type(code) is int else code
@@ -34,7 +36,7 @@ class FlaskMonitorTestCase(unittest.TestCase):
         self.app, self.registry  = register_metrics(self.app, error_fn=is_error200)
         self.dispatcher = DispatcherMiddleware(self.app.wsgi_app, {"/metrics": make_wsgi_app(registry=self.registry)})
         # self.app.wsgi_app = DispatcherMiddleware(self.app.wsgi_app, self.registry)
-        self.thread = watch_dependencies("database", check_db, time_execution=1, registry=self.registry, app=self.app)
+        self.scheduler = watch_dependencies("database", check_db, time_execution=500, registry=self.registry, app=self.app)
         self.client = self.app.test_client()
         self.client.get('/batata')
         self.client.get('/teste')
@@ -43,7 +45,8 @@ class FlaskMonitorTestCase(unittest.TestCase):
 
     def tearDown(self):
         """ TearDown test """
-        self.thread.cancel()
+        # self.scheduler.shutdown()
+        pass
 
     def iter_responses(self, path, verbs=['get'], **kwargs):
         """ internal requests """
@@ -95,11 +98,18 @@ class FlaskMonitorTestCase(unittest.TestCase):
         Check metrics count
         """
         resp = self.client.get('/metrics')
-        print(resp.data.decode())
         # 2 calls in /teste
         self.assertRegex(resp.data.decode(), r'.*count.*\/teste.*200.*2.0')
         # 1 calls in /batata
         self.assertRegex(resp.data.decode(), r'.*count.*\/batata.*404.*1.0')
+
+    def test_watch_dependencies(self):
+        """
+        Check dependencies watched
+        """
+        sleep(3)
+        resp = self.client.get('/metrics')
+        self.assertIn('database', resp.data.decode())
 
 
 if __name__ == "__main__":

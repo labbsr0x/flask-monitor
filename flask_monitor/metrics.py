@@ -134,7 +134,9 @@ def watch_dependencies(dependency, func, time_execution=1500, registry=None, app
             response = func()
             DEPENDENCY_UP.labels(dependency).set(response)
             DEPENDENCY_UP_LATENCY \
-                .labels(dependency, "http", "200" if response else "400", "False", "", "GET", "/") \
+                .labels(
+                    dependency, "http", "200" if response else "400",
+                    "False" if response else "True", "", "GET", "/") \
                 .observe(time.time() - start)
         # pylint: disable=broad-except
         except Exception:

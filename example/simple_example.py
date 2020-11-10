@@ -7,6 +7,8 @@ from flask_monitor import register_metrics, watch_dependencies, collect_dependen
 from flask import Flask
 import requests as req
 from prometheus_client import CollectorRegistry
+from time import time, sleep
+from random import random
 
 registry = CollectorRegistry()
 
@@ -35,30 +37,9 @@ dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app(regis
 def check_db():
     try:
         response = req.get("http://localhost:5000/database")
-        app.logger.warning(response)
-        collect_dependency_time(
-            app=app,
-            name='database',
-            type='http',
-            status=response.status_code,
-            isError= 'False' if response.ok else 'True',
-            method='GET',
-            addr='/database',
-            elapsed=response.elapsed.total_seconds()
-        )
+        app.logger.info(response)
         return 1
     except:
-        collect_dependency_time(
-            app=app,
-            name='database',
-            type='http',
-            status='500',
-            isError= 'True',
-            method='GET',
-            addr='/database',
-            elapsed=0
-        )
-        traceback.print_stack()
         return 0
     
 
@@ -82,6 +63,22 @@ def hello_world():
 # endpoint
 @app.route('/database')
 def bd_running():
+    start = time()
+    # checks the database
+    sleep(random()/10)
+    # compute the elapsed time
+    elapsed = time() - start
+    # register the dependency time
+    collect_dependency_time(
+        app=app,
+        name='database',
+        type='http',
+        status=200,
+        isError= 'False',
+        method='GET',
+        addr='external/database',
+        elapsed=elapsed
+    )
     return 'I am a database working.'
 
 if __name__ == "__main__":

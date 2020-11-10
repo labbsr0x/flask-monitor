@@ -10,7 +10,7 @@ DEPENDENCY_UP_LATENCY = None
 #
 # Request callbacks
 #
-def is_error(code):
+def _is_error_(code):
     """
     Default status error checking
     """
@@ -89,7 +89,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
         # pylint: disable=protected-access
         request_latency = time.time() - request._prometheus_metrics_request_start_time
         # pylint: enable=protected-access
-        error_status = is_error(response.status_code)
+        error_status = _is_error_(response.status_code)
         METRICS_REQUEST_LATENCY \
             .labels("http", response.status_code, error_status, "", request.method, request.path) \
             .observe(request_latency)
@@ -99,7 +99,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
         return response
 
     if error_fn is not None:
-        is_error.__code__ = error_fn.__code__
+        _is_error_.__code__ = error_fn.__code__
     app.before_request(before_request)
     app.after_request(after_request)
     return app, registry
@@ -140,8 +140,11 @@ def watch_dependencies(dependency, func, time_execution=15000, registry=None, ap
     atexit.register(scheduler.shutdown)
     return scheduler
 
-# pylint: disable=unused-argument
-def collect_dependency_time(app, *args, **kwargs):
+# pylint: disable=too-many-arguments
+def collect_dependency_time(
+    app, name, rtype='http', status=200,
+    is_error=False, error_message='',
+    method='GET', addr='/', **kwargs):
     """
     Register dependencies metrics
     """
@@ -170,11 +173,11 @@ def collect_dependency_time(app, *args, **kwargs):
         elapsed = time.time() - kwargs.get('start', time.time())
     DEPENDENCY_UP_LATENCY \
         .labels(
-            kwargs.get('name', ''),
-            kwargs.get('type', '').lower(),
-            kwargs.get('status', ''),
-            "False" if kwargs.get('isError', True) else "True",
-            kwargs.get('errorMessage', ''),
-            kwargs.get('method', 'get').upper(),
-            kwargs.get('addr', '/')) \
+            name,
+            rtype.lower(),
+            status,
+            "False" if is_error else "True",
+            error_message,
+            method.upper(),
+            addr) \
         .observe(elapsed)

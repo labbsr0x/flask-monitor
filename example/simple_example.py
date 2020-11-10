@@ -38,7 +38,7 @@ def check_db():
     try:
         response = req.get("http://localhost:5000/database")
         app.logger.info(response)
-        return 1
+        return response.status_code < 400
     except:
         return 0
     

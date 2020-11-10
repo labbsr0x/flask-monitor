@@ -5,8 +5,6 @@ from flask import request, current_app
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
 from apscheduler.schedulers.background import BackgroundScheduler
 
-DEPENDENCY_UP_LATENCY = None
-
 #
 # Request callbacks
 #
@@ -45,7 +43,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
 
 
     # pylint: disable=invalid-name
-    METRICS_INFO = Gauge(
+    metrics_info = Gauge(
         "application_info",
         "records static application info such as it's semantic version number",
         ["version", "name"],
@@ -53,7 +51,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     )
 
     # pylint: disable=invalid-name
-    METRICS_REQUEST_LATENCY = Histogram(
+    metrics_request_latency = Histogram(
         "request_seconds",
         "records in a histogram the number of http requests and their duration in seconds",
         ["type", "status", "isError", "errorMessage", "method", "addr"],
@@ -62,7 +60,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     )
 
     # pylint: disable=invalid-name
-    METRICS_REQUEST_SIZE = Counter(
+    metrics_request_size = Counter(
         "response_size_bytes",
         "counts the size of each http response",
         ["type", "status", "isError", "errorMessage", "method", "addr"],
@@ -71,7 +69,7 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
     # pylint: enable=invalid-name
 
     app_version = app.config.get("APP_VERSION", "0.0.0")
-    METRICS_INFO.labels(app_version, app.name).set(1)
+    metrics_info.labels(app_version, app.name).set(1)
 
     def before_request():
         """
@@ -90,10 +88,10 @@ def register_metrics(app=current_app, buckets=None, error_fn=None, registry=None
         request_latency = time.time() - request._prometheus_metrics_request_start_time
         # pylint: enable=protected-access
         error_status = _is_error_(response.status_code)
-        METRICS_REQUEST_LATENCY \
+        metrics_request_latency \
             .labels("http", response.status_code, error_status, "", request.method, request.path) \
             .observe(request_latency)
-        METRICS_REQUEST_SIZE.labels(
+        metrics_request_size.labels(
             "http", response.status_code, error_status, "", request.method, request.path
         ).inc(size_request)
         return response
@@ -149,29 +147,25 @@ def collect_dependency_time(
     Register dependencies metrics
     """
 
-    # pylint: disable=global-statement
-    global DEPENDENCY_UP_LATENCY
-
     if not kwargs.get('registry'):
         registry = app.extensions.get("registry", CollectorRegistry())
         app.extensions["registry"] = registry
 
-    if not DEPENDENCY_UP_LATENCY:
-        DEPENDENCY_UP_LATENCY = app.extensions.get(
-            "DEPENDENCY_UP_LATENCY",
-            Histogram(
+    dependency_up_latency = app.extensions.get(
+        "dependency_latency"
+    )
+    if not dependency_up_latency:
+        app.extensions['dependency_latency'] = dependency_up_latency = Histogram(
                 "dependency_request_seconds",
                 "records in a histogram the number of requests to dependency",
                 ["name", "type", "status", "isError", "errorMessage", "method", "addr"],
                 registry=registry
             )
-        )
-        app.extensions['DEPENDENCY_UP_LATENCY'] = DEPENDENCY_UP_LATENCY
 
     elapsed = kwargs.get('elapsed')
     if not elapsed:
         elapsed = time.time() - kwargs.get('start', time.time())
-    DEPENDENCY_UP_LATENCY \
+    dependency_up_latency \
         .labels(
             name,
             rtype.lower(),

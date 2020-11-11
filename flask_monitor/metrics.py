@@ -142,12 +142,16 @@ def watch_dependencies(dependency, func, time_execution=15000, registry=None, ap
 def collect_dependency_time(
     app, name, rtype='http', status=200,
     is_error=False, error_message='',
-    method='GET', addr='/', **kwargs):
+    method='GET', addr='/',
+    elapsed=None,
+    start=0,
+    registry=None
+):
     """
     Register dependencies metrics
     """
 
-    if not kwargs.get('registry'):
+    if not registry:
         registry = app.extensions.get("registry", CollectorRegistry())
         app.extensions["registry"] = registry
 
@@ -162,9 +166,8 @@ def collect_dependency_time(
                 registry=registry
             )
 
-    elapsed = kwargs.get('elapsed')
     if not elapsed:
-        elapsed = time.time() - kwargs.get('start', time.time())
+        elapsed = time.time() - start
     dependency_up_latency \
         .labels(
             name,

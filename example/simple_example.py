@@ -72,9 +72,9 @@ def bd_running():
     collect_dependency_time(
         app=app,
         name='database',
-        type='http',
+        rtype='http',
         status=200,
-        isError= 'False',
+        is_error= 'False',
         method='GET',
         addr='external/database',
         elapsed=elapsed

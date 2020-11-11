@@ -106,7 +106,7 @@ def check_db():
         traceback.print_stack()
     return 0
 
-watch_dependencies("Bd", check_db)
+watch_dependencies("Bd", check_db, app=app)
 ```
 
 Other optional parameters are also:

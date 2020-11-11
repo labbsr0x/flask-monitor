@@ -3,9 +3,14 @@ from prometheus_client import make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 import traceback
-from flask_monitor import register_metrics, watch_dependencies
+from flask_monitor import register_metrics, watch_dependencies, collect_dependency_time
 from flask import Flask
 import requests as req
+from prometheus_client import CollectorRegistry
+from time import time, sleep
+from random import random
+
+registry = CollectorRegistry()
 
 ## create a flask app
 app = Flask(__name__)
@@ -23,27 +28,27 @@ def is_error200(code):
 # buckets is the internavals for histogram parameter. buckets is a optional parameter
 # error_fn is a function to define what http status code is a error. By default errors are
 # 400 and 500 status code. error_fn is a option parameter
-register_metrics(app, buckets=[0.3, 0.6], error_fn=is_error200)
+register_metrics(app, buckets=[0.3, 0.6], error_fn=is_error200, registry=registry)
 
 # Plug metrics WSGI app to your main app with dispatcher
-dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
+dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)})
 
 # a dependency healthcheck
 def check_db():
     try:
         response = req.get("http://localhost:5000/database")
-        if response.status_code == 200:
-            return 1
+        app.logger.info(response)
+        return response.status_code < 400
     except:
-        traceback.print_stack()
-    return 0
+        return 0
+    
 
 # watch dependency
 # first parameter is the dependency's name. It's a mandatory parameter.
 # second parameter is the health check function. It's a mandatory parameter.
 # time_execution is used to set the interval of running the healthchec function.
 # time_execution is a optional parameter
-watch_dependencies("database", check_db, time_execution=1)
+scheduler = watch_dependencies('database', check_db, app=app, time_execution=500)
 
 # endpoint
 @app.route('/teste')
@@ -58,6 +63,22 @@ def hello_world():
 # endpoint
 @app.route('/database')
 def bd_running():
+    start = time()
+    # checks the database
+    sleep(random()/10)
+    # compute the elapsed time
+    elapsed = time() - start
+    # register the dependency time
+    collect_dependency_time(
+        app=app,
+        name='database',
+        rtype='http',
+        status=200,
+        is_error= 'False',
+        method='GET',
+        addr='external/database',
+        elapsed=elapsed
+    )
     return 'I am a database working.'
 
 if __name__ == "__main__":

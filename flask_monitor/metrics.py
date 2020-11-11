@@ -143,8 +143,7 @@ def collect_dependency_time(
     app, name, rtype='http', status=200,
     is_error=False, error_message='',
     method='GET', addr='/',
-    elapsed=None,
-    start=0,
+    elapsed=0,
     registry=None
 ):
     """
@@ -166,8 +165,6 @@ def collect_dependency_time(
                 registry=registry
             )
 
-    if not elapsed:
-        elapsed = time.time() - start
     dependency_up_latency \
         .labels(
             name,

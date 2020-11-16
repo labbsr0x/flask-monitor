@@ -46,6 +46,9 @@ setup(
     packages=find_packages(exclude=['tests']),
     install_requires=[
         'prometheus-client>=0.6.0',
+        'APScheduler>=3.6.3',
+        'flask>=1.0.0',
+        'requests',
     ],
     extras_require={
         'flask': ['Flask>=1.0.0'],

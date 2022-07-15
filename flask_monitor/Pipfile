@@ -8,7 +8,7 @@ pytest-timeout = "*"
 pylint = "*"
 pytest = "==5.2.2"
 pytest-cov = "==2.8.1"
-codecov = "==2.0.15"
+codecov = "==2.0.16"
 flake8 = "==3.7.9"
 
 [packages]
